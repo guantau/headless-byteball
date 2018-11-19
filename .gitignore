@@ -39,3 +39,4 @@ Session.vim
 play/textcoins-*
 isolate-*-v8.log
 processed.txt
+package-lock.json

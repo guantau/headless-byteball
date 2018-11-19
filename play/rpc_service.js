@@ -36,6 +36,8 @@ function initRPC() {
 		}
 	});
 
+	server.enableAuth(conf.rpcUser, conf.rpcPassword);
+
 	/**
 	 * Returns information about the current state.
 	 * @return { last_mci: {Integer}, last_stable_mci: {Integer}, count_unhandled: {Integer} }
