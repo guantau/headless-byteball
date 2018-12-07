@@ -15,6 +15,8 @@ var mutex = require('byteballcore/mutex.js');
 var storage = require('byteballcore/storage.js');
 var constants = require('byteballcore/constants.js');
 var validationUtils = require("byteballcore/validation_utils.js");
+var wallet = require('byteballcore/wallet.js');
+
 var wallet_id;
 
 if (conf.bSingleAddress)
@@ -215,6 +217,46 @@ function initRPC() {
 			cb("wrong parameters");
 	});
 
+	server.expose('claimtextcoin', function(args, opt, cb) {
+		var mnemonics = args[0];
+		headlessWallet.claimTextCoin(mnemonics, cb);
+	});
+
+	server.expose('pairdevice', function(args, opt, cb) {
+		var code = args[0];
+		
+		var conf = require('byteballcore/conf.js');
+		var re = new RegExp('^'+conf.program+':', 'i');
+
+		code = code.replace(re, '');
+		var matches = code.match(/^([\w\/+]+)@([\w.:\/-]+)#(.+)$/);
+		if (!matches)
+			return cb("Invalid pairing code");
+		var device_pubkey = matches[1];
+		var hub_host = matches[2];
+		var pairing_secret = matches[3];
+		if (device_pubkey.length !== 44)
+			return cb("Invalid pubkey length");
+		console.log(device_pubkey, hub_host, pairing_secret);
+
+		var device = require('byteballcore/device');
+		if (device_pubkey === device.getMyDevicePubKey())
+		return cb("cannot pair with myself");
+		if (!device.isValidPubKey(device_pubkey))
+			return cb("invalid peer public key");
+		// the correspondent will be initially called 'New', we'll rename it as soon as we receive the reverse pairing secret back
+		device.addUnconfirmedCorrespondent(device_pubkey, hub_host, 'New', function(device_address){
+			device.startWaitingForPairing(function(reversePairingInfo){
+				device.sendPairingMessage(hub_host, device_pubkey, pairing_secret, reversePairingInfo.pairing_secret, {
+					ifOk: cb,
+					ifError: cb
+				});
+			});
+		});
+	});
+
+
+
 	headlessWallet.readSingleWallet(function(_wallet_id) {
 		wallet_id = _wallet_id;
 		// listen creates an HTTP server on localhost only 
@@ -224,3 +266,15 @@ function initRPC() {
 }
 
 eventBus.on('headless_wallet_ready', initRPC);
+
+
+eventBus.on('text', function(from_address, text){
+	console.log('text from '+from_address+': '+text);
+	headlessWallet.claimTextCoin(text, function (err, unit) {
+		if (err) {
+			console.log(err);
+		} else {
+			console.log(unit);
+		}
+	});
+});

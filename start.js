@@ -472,6 +472,26 @@ function signMessage(signing_address, message, cb) {
 	Wallet.signMessage(signing_address, message, [device.getMyDeviceAddress()], signWithLocalPrivateKey, cb);
 }
 
+function claimTextCoin(mnemonics, cb) {
+	var Mnemonic = require('bitcore-mnemonic');
+
+	mnemonics = mnemonics.toLowerCase().split('-').join(' ');
+	if ((mnemonics.split(' ').length % 3 !== 0) || !Mnemonic.isValid(mnemonics)) {
+		return cb("invalid mnemonic");
+	}
+
+	issueOrSelectNextMainAddress(function(address){
+		var Wallet = require('byteballcore/wallet.js');
+		Wallet.receiveTextCoin(mnemonics, address, function(err, unit, asset) {
+			if (err) {
+				console.log(err);
+				return cb(err);
+			}
+			cb(null, unit);
+		});
+	});
+}
+
 
 function handleText(from_address, text, onUnknown){
 	
@@ -631,6 +651,7 @@ exports.sendAllBytes = sendAllBytes;
 exports.sendPaymentUsingOutputs = sendPaymentUsingOutputs;
 exports.sendMultiPayment = sendMultiPayment;
 exports.issueChangeAddressAndSendMultiPayment = issueChangeAddressAndSendMultiPayment;
+exports.claimTextCoin = claimTextCoin;
 
 if (require.main === module)
 	setupChatEventHandlers();
